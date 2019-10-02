@@ -119,7 +119,12 @@ class Polygon(object):
         rez += 'Points:\n'
         for i in range(3):
             rez += repr(self.points[i])+'\n'
+        rez+='flag:'+ str(self.flag)+'\n'
         return rez
+
+class StlModel(object):
+    def __init__(self, fname):
+        self.polygons = read_stl(fname)['polygons']
 
 
 def read_stl(fname):
@@ -140,11 +145,11 @@ def read_stl(fname):
 
 
 if __name__ == '__main__':
-    # model = read_stl('1.stl')
-    # print(model['polygons'])
-    print(line_intersect_plane(Point(0, 1, 0),
-                               Point(1, 1, 0),
-                               Point(2, 0, 0),
-                               Point(1, 0, 0),
-                               full_line=True)
-                               )
+    model = StlModel('1.stl')
+    print(model.polygons)
+    # print(line_intersect_plane(Point(0, 1, 0),
+    #                            Point(1, 1, 0),
+    #                            Point(2, 0, 0),
+    #                            Point(1, 0, 0),
+    #                            full_line=True)
+    #                            )
