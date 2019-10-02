@@ -82,13 +82,27 @@ class Point(object):
         return rez
 
 
-def line_intersect_plane(line_p0, line_p1, plane_point, plane_normal):
+def line_intersect_plane(line_p0, line_p1, plane_point, plane_normal, full_line=False):
+    """
+    function find the intersection between line, defined by points line_p0 and line_p1
+    and plane, defined by point plane_point and normal plane_normal.
+    if line is parallel to plane and there is no intersection function returns 0.
+    if full_line = True, line is extended to intersection,
+    else point returns only if segment p0-p1 intersects plane.
+    """
     v1 = (line_p1-line_p0).dot(plane_normal)
     if v1 == 0:
-        return 0
+        return None
     v2 = (plane_point-line_p0).dot(plane_normal)
     rI = v2/v1
-    return line_p0+rI*(line_p1-line_p0)
+    lp = line_p0+rI*(line_p1-line_p0)
+    if full_line:
+        return lp
+    else:
+        if 0<=rI<=1:
+            return lp
+        else:
+            return None
 
 
 class Polygon(object):
@@ -131,4 +145,6 @@ if __name__ == '__main__':
     print(line_intersect_plane(Point(0, 1, 0),
                                Point(1, 1, 0),
                                Point(2, 0, 0),
-                               Point(1, 0, 0)))
+                               Point(1, 0, 0),
+                               full_line=True)
+                               )
