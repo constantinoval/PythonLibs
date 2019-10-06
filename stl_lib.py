@@ -5,6 +5,7 @@ from math import sqrt
 import json
 from os.path import exists
 
+
 class Point(object):
     def __init__(self, x, y, z):
         """
@@ -101,7 +102,7 @@ def line_intersect_plane(line_p0, line_p1, plane_point, plane_normal, full_line=
     if full_line:
         return lp
     else:
-        if 0<=rI<=1:
+        if 0 <= rI <= 1:
             return lp
         else:
             return None
@@ -121,40 +122,41 @@ class Polygon(object):
         rez += 'Points:\n'
         for i in range(3):
             rez += repr(self.points[i])+'\n'
-        rez+='flag:'+ str(self.flag)+'\n'
+        rez += 'flag:' + str(self.flag)+'\n'
         return rez
-    
+
     def bbox(self):
         xs = [self.points[i].x for i in range(3)]
         ys = [self.points[i].y for i in range(3)]
         zs = [self.points[i].z for i in range(3)]
-        return [ (min(xs), max(xs)),
-                 (min(ys), max(ys)),
-                 (min(zs), max(zs))
-        ]
+        return [(min(xs), max(xs)),
+                (min(ys), max(ys)),
+                (min(zs), max(zs))
+                ]
+
     def center(self):
         return np.sum(self.points)*0.3333333333333
 
     def plane_intersection(self, plane_point, plane_normal):
-        plane = lambda p: plane_normal.dot(p-plane_point)
+        def plane(p): return plane_normal.dot(p-plane_point)
         rez = np.sign([plane(pp) for pp in self.points])
-        if np.all(rez==0):
+        if np.all(rez == 0):
             return lambda r: self.center()
-        if rez[0]==rez[1]==rez[2]:
+        if rez[0] == rez[1] == rez[2]:
             return None
         _, idx, counts = np.unique(rez, return_index=True, return_counts=True)
         min_idx = idx[counts.argmin()]
         p0 = self.points[min_idx]
-        if rez[min_idx]==0:
+        if rez[min_idx] == 0:
             return p0
-        idxs = [0,1,2]
+        idxs = [0, 1, 2]
         idxs.pop(min_idx)
         p1 = self.points[idxs[0]]
         p2 = self.points[idxs[1]]
         pstart = line_intersect_plane(p0, p1, plane_point, plane_normal)
         pend = line_intersect_plane(p0, p2, plane_point, plane_normal)
         return (pstart+pend)*0.5
-        
+
 
 class StlModel(object):
     def __init__(self, fname):
@@ -163,6 +165,7 @@ class StlModel(object):
         self.polygons = read_stl(fname)['polygons']
         print('done reading slt model')
         self.boundbox = None
+
     def devide_on_blocks(self, dir=0, minc=0, maxc=1, ndivs=2):
         z = np.linspace(minc, maxc, ndivs+1)
         self.blocks = {}
@@ -170,26 +173,30 @@ class StlModel(object):
             block_name = '{} {}'.format(z[i-1], z[i])
             self.blocks[block_name] = []
             for j, p in enumerate(self.polygons):
-                if z[i-1]<=p.center().data[dir]<z[i]:
+                if z[i-1] <= p.center().data[dir] < z[i]:
                     self.blocks[block_name].append(j)
+
     def bbox(self):
         if self.boundbox:
             return self.boundbox
-        minc = [1e10,1e10,1e10]
-        maxc = [-1e10,-1e10,-1e10]
+        minc = [1e10, 1e10, 1e10]
+        maxc = [-1e10, -1e10, -1e10]
         for pol in self.polygons:
             for p in pol.points:
                 for i in range(3):
-                    minc[i]=min(minc[i], p.data[i])
-                    maxc[i]=max(maxc[i], p.data[i])
+                    minc[i] = min(minc[i], p.data[i])
+                    maxc[i] = max(maxc[i], p.data[i])
         self.boundbox = list(zip(minc, maxc))
         return self.boundbox
+
     def save_blocks(self):
         if self.blocks:
             json.dump(self.blocks, open(self.fname+'.blks', 'w'))
+
     def read_blocks(self):
         if exists(self.fname+'.blks'):
             self.blocks = json.load(open(self.fname+'.blks', 'r'))
+
 
 def read_stl(fname):
     f = open(fname, 'rb')
@@ -214,7 +221,7 @@ if __name__ == '__main__':
     import vtkplotter as vtk
     # colors = cycle(['r', 'g', 'b', 'y'])
     # model = StlModel('3.stl')
-    #print(model.bbox())
+    # print(model.bbox())
     # print('deviding model on blocks')
     # model.devide_on_blocks(1, -40, 23, 10)
     # model.save_blocks()
@@ -237,18 +244,20 @@ if __name__ == '__main__':
     # for p in model.polygons[:100]:
     #     a.add(vtk.Actor([[pp.data for pp in p.points],[(0,1,2)]]))
     # a.show()
+    p = vtk.Plotter(shape=(1, 2), bg='white', axes=1)
     a = vtk.load('1.vtk')
-    # a.decimate(0.01)
-    a.lc('red')
-    p = vtk.Plotter(shape=(1,2), bg='white', axes=1, interactive=True)
+    # a.decimate(0.01))
     # a.write('1.vtk')
     sc = [c[1] for c in a.getPoints()]
     a.pointColors(sc)
-    i=a.isolines(2,-30,20)
+#    a.scalars(0)
+    b = a.ybounds()
+    i = a.isolines(20, b[0], b[1])
+    i2 = a.isolines(20, b[1]*0.7, b[1]).clean()
     ii = i.clean()
     # sx = a.projectOnPlane('x')
     # s = sx.silhouette([1,0,0])
     # p.add(pp)
     # p.add(sx)
-    p.show(a, at=0)
-    p.show(i, ii, at=1)
+    p.show(a, i, i2, at=0, N=2)
+    p.show(vtk.Points(ii.getPoints()), vtk.Points(i2.getPoints()), at=1, interactive=True)
