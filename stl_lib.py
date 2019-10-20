@@ -215,49 +215,38 @@ def read_stl(fname):
     return rez
 
 
+def group_by(data, by, tol=1e-6):
+    tmp = data.copy()
+    tmp.sort(order=by)
+    ii = [0] + (np.where(np.diff(tmp[by]) >= tol)
+                [0]+1).tolist() + [len(tmp[by])]
+    groups = []
+    for i in range(len(ii)-1):
+        groups.append(tmp[ii[i]:ii[i+1]])
+    return groups
+
+
 if __name__ == '__main__':
     import matplotlib.pylab as plt
     from itertools import cycle
     import vtkplotter as vtk
-    # colors = cycle(['r', 'g', 'b', 'y'])
-    # model = StlModel('3.stl')
-    # print(model.bbox())
-    # print('deviding model on blocks')
-    # model.devide_on_blocks(1, -40, 23, 10)
-    # model.save_blocks()
-    # print('done...')
-    # # print(model.blocks.keys())
-    # points = []
-    # for b in model.blocks:
-    #     print('processing block ', b)
-    #     y = np.array([float(bb) for bb in b.split()]).mean()
-    #     for i in model.blocks[b]:
-    #         pp = model.polygons[i].plane_intersection(Point(0, y, 0), Point(0,1,0))
-    #         if pp:
-    #             points.append(pp.data)
-    #     #plt.plot([p.x for p in points], [p.z for p in points], 'o'+next(colors))
-    # # plt.show()
-    # points = vtk.Points(points)
-    # points.show()
-    # a = vtk.Actor()
-    # plotter = vtk.Plotter()
-    # for p in model.polygons[:100]:
-    #     a.add(vtk.Actor([[pp.data for pp in p.points],[(0,1,2)]]))
-    # a.show()
     p = vtk.Plotter(shape=(1, 2), bg='white', axes=1)
     a = vtk.load('1.vtk')
-    # a.decimate(0.01))
-    # a.write('1.vtk')
     sc = [c[1] for c in a.getPoints()]
     a.pointColors(sc)
-#    a.scalars(0)
     b = a.ybounds()
     i = a.isolines(20, b[0], b[1])
     i2 = a.isolines(20, b[1]*0.7, b[1]).clean()
     ii = i.clean()
-    # sx = a.projectOnPlane('x')
-    # s = sx.silhouette([1,0,0])
-    # p.add(pp)
-    # p.add(sx)
+    pnts1 = np.array([tuple(p) for p in ii.getPoints()], dtype=[
+        ('x', float), ('y', float), ('z', float)])
+    g1 = group_by(pnts1, by='y', tol=1e-3)
     p.show(a, i, i2, at=0, N=2)
-    p.show(vtk.Points(ii.getPoints()), vtk.Points(i2.getPoints()), at=1, interactive=True)
+    p.show(vtk.Points(ii.getPoints()), vtk.Points(i2.getPoints()),
+           vtk.Points(g1[10].tolist(), c='green'),
+           vtk.Points(g1[0].tolist(), c='red'), at=1, interactive=True)
+    for g in g1:
+        plt.plot(g['x'], g['z'], '.')
+    plt.grid()
+    plt.gca().set_aspect('equal', 'box')
+    plt.show()
