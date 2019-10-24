@@ -1,4 +1,4 @@
-# -- coding: cp1251
+# -- coding: utf8
 import numpy as np
 import pyodbc
 from scipy.optimize import minimize_scalar, fmin, differential_evolution
@@ -76,20 +76,28 @@ def syncPulses(p):
     r=differential_evolution(residual, bounds=((-tmax/3, tmax/3), (-tmax/3, tmax/3), (-emax/10, emax/10)))
     return p[0], [p[1][0], ref(p[0]-r.x[0])+r.x[2], tr(p[0]-r.x[1])]
 
-def correctE(e,s, Ecor=100000., window=800):
+def correctE(e,s, Ecor=100000., interval=0.3, window=None):
+    kk, aa = getE(e, s, interval=interval, window=window)
+    return e-s*(Ecor-kk)/Ecor/kk+aa/kk
+
+def getE(e,s, interval=0.3, window=None):
+    if type(window)==list:
+        return np.polyfit(e[window[0]:window[1]],s[window[0]:window[1]],1)
     k=[]
     a=[]
     N=len(e)
-    window=max(2, N//10)
+    N=int(N*interval)
+    if window==None:
+        window=max(2, N//10)
     step=max(1,window//100)
-    for i in range(0,N//3,step):
+    for i in range(0, N, step):
         r=np.polyfit(e[i:i+window],s[i:i+window],1)
         k.append(r[0])
         a.append(r[1])
     NN=np.argmax(k)
     kk=k[NN]
     aa=a[NN]
-    return e-s*(Ecor-kk)/Ecor/kk+aa/kk
+    return kk, aa
 
 def integrate(y, dx):
     rez=[0]
@@ -262,126 +270,153 @@ class odbc:
 
 class bar(object):
     def __init__(self, odbcRez):
-        self.E = tofloat(odbcRez['МодульУпругости(МПа)'])
-        self.code = str(odbcRez['КодМернСтерж']) 
-        self.mat = str(odbcRez['Материал'])
-        self.d = tofloat(odbcRez['Диаметр(мм)'])
-        self.d0 = tofloat(odbcRez['ВнутреннийДиаметр'])
-        self.c = tofloat(odbcRez['СкоростьЗвука(мсек)'])
-        self.l = tofloat(odbcRez['Длина(мм)'])
+        self.E = tofloat(odbcRez['РњРѕРґСѓР»СЊРЈРїСЂСѓРіРѕСЃС‚Рё(РњРџР°)'])
+        self.code = str(odbcRez['РљРѕРґРњРµСЂРЅРЎС‚РµСЂР¶']) 
+        self.mat = str(odbcRez['РњР°С‚РµСЂРёР°Р»'])
+        self.d = tofloat(odbcRez['Р”РёР°РјРµС‚СЂ(РјРј)'])
+        self.d0 = tofloat(odbcRez['Р’РЅСѓС‚СЂРµРЅРЅРёР№Р”РёР°РјРµС‚СЂ'])
+        self.c = tofloat(odbcRez['РЎРєРѕСЂРѕСЃС‚СЊР—РІСѓРєР°(РјСЃРµРє)'])
+        self.l = tofloat(odbcRez['Р”Р»РёРЅР°(РјРј)'])
         self.S = np.pi*self.d**2/4.
     def __repr__(self):
         rez=''
-        rez+=f'Код стержня: {self.code}\n'
-        rez+=f'Материал стержня: {self.mat}\n'
-        rez+=f'E = {self.E} МПа\n'
-        rez+=f'c = {self.c} м/c\n'
-        rez+=f'l = {self.l} мм\n'
-        rez+=f'd = {self.d} мм\n'
-        rez+=f'd0 = {self.d0} мм\n'
+        rez+=f'РљРѕРґ СЃС‚РµСЂР¶РЅСЏ: {self.code}\n'
+        rez+=f'РњР°С‚РµСЂРёР°Р» СЃС‚РµСЂР¶РЅСЏ: {self.mat}\n'
+        rez+=f'E = {self.E} РњРџР°\n'
+        rez+=f'c = {self.c} Рј/c\n'
+        rez+=f'l = {self.l} РјРј\n'
+        rez+=f'd = {self.d} РјРј\n'
+        rez+=f'd0 = {self.d0} РјРј\n'
         return rez
 class striker(object):
     def __init__(self, odbcRez):
-        self.code = str(odbcRez['КодУдарника']) 
-        self.mat = str(odbcRez['МатериалУдарника'])
-        self.d = tofloat(odbcRez['ДиаметрУдарника(мм)'])
-        self.l = tofloat(odbcRez['ДлинаУдарника(мм)'])
+        self.code = str(odbcRez['РљРѕРґРЈРґР°СЂРЅРёРєР°']) 
+        self.mat = str(odbcRez['РњР°С‚РµСЂРёР°Р»РЈРґР°СЂРЅРёРєР°'])
+        self.d = tofloat(odbcRez['Р”РёР°РјРµС‚СЂРЈРґР°СЂРЅРёРєР°(РјРј)'])
+        self.l = tofloat(odbcRez['Р”Р»РёРЅР°РЈРґР°СЂРЅРёРєР°(РјРј)'])
         self.S = np.pi*self.d**2/4.
     def __repr__(self):
         rez=''
-        rez+=f'Код ударника: {self.code}\n'
-        rez+=f'Материал ударника: {self.mat}\n'
-        rez+=f'l = {self.l} мм\n'
-        rez+=f'd = {self.d} мм\n'
+        rez+=f'РљРѕРґ СѓРґР°СЂРЅРёРєР°: {self.code}\n'
+        rez+=f'РњР°С‚РµСЂРёР°Р» СѓРґР°СЂРЅРёРєР°: {self.mat}\n'
+        rez+=f'l = {self.l} РјРј\n'
+        rez+=f'd = {self.d} РјРј\n'
         return rez
 class experimentalData(object):
     def __init__(self, odbcRez):
-        self.data = str(odbcRez['Дата']).split()[0]
-        self.code = str(odbcRez['КодОбразца'])
-        self.striker = str(odbcRez['Ударник'])
-        self.expType = str(odbcRez['ТипЭксперимента'])
-        self.T = tofloat(odbcRez['Температура'])
-        self.P = tofloat(odbcRez['ДавлениеКВД'])
-        self.V = tofloat(odbcRez['СкоростьУдарника'])
-        self.d0 = tofloat(odbcRez['Диаметр'])
-        self.l0 = tofloat(odbcRez['Длина'])
-        self.l = tofloat(odbcRez['ОстаточнаяДлина'])
-        self.d = tofloat(odbcRez['Шейка'])
-        self.note = str(odbcRez['Примечание'])
+        self.data = str(odbcRez['Р”Р°С‚Р°']).split()[0]
+        self.code = str(odbcRez['РљРѕРґРћР±СЂР°Р·С†Р°'])
+        self.striker = str(odbcRez['РЈРґР°СЂРЅРёРє'])
+        self.expType = str(odbcRez['РўРёРїР­РєСЃРїРµСЂРёРјРµРЅС‚Р°'])
+        self.T = tofloat(odbcRez['РўРµРјРїРµСЂР°С‚СѓСЂР°'])
+        self.P = tofloat(odbcRez['Р”Р°РІР»РµРЅРёРµРљР’Р”'])
+        self.V = tofloat(odbcRez['РЎРєРѕСЂРѕСЃС‚СЊРЈРґР°СЂРЅРёРєР°'])
+        self.d0 = tofloat(odbcRez['Р”РёР°РјРµС‚СЂ'])
+        self.l0 = tofloat(odbcRez['Р”Р»РёРЅР°'])
+        self.l = tofloat(odbcRez['РћСЃС‚Р°С‚РѕС‡РЅР°СЏР”Р»РёРЅР°'])
+        self.d = tofloat(odbcRez['РЁРµР№РєР°'])
+        self.note = str(odbcRez['РџСЂРёРјРµС‡Р°РЅРёРµ'])
         self.osc = {}
-        self.osc['t'], self.osc['rays'] = unpackTable(odbcRez['Осциллограмма'])
+        self.osc['t'], self.osc['rays'] = unpackTable(odbcRez['РћСЃС†РёР»Р»РѕРіСЂР°РјРјР°'])
         self.pulses = {}
-        self.pulses['t'], self.pulses['pulses'] = unpackTable(odbcRez['ИмпульсыОбработанные'])
+        self.pulses['t'], self.pulses['pulses'] = unpackTable(odbcRez['РРјРїСѓР»СЊСЃС‹РћР±СЂР°Р±РѕС‚Р°РЅРЅС‹Рµ'])
         self.tarir = [
-            tofloat(odbcRez['КалибровочныйКоэффициентНС']),
-            tofloat(odbcRez['КалибровочныйКоэффициентОС']),
-            tofloat(odbcRez['КалибровочныйКоэффициентОС2(Обоймы)'])
+            tofloat(odbcRez['РљР°Р»РёР±СЂРѕРІРѕС‡РЅС‹Р№РљРѕСЌС„С„РёС†РёРµРЅС‚РќРЎ']),
+            tofloat(odbcRez['РљР°Р»РёР±СЂРѕРІРѕС‡РЅС‹Р№РљРѕСЌС„С„РёС†РёРµРЅС‚РћРЎ']),
+            tofloat(odbcRez['РљР°Р»РёР±СЂРѕРІРѕС‡РЅС‹Р№РљРѕСЌС„С„РёС†РёРµРЅС‚РћРЎ2(РћР±РѕР№РјС‹)'])
         ]
         self.datPosition = [
-            tofloat(odbcRez['ПоложениеДатчиковНС(мм)']),
-            tofloat(odbcRez['ПоложениеДатчиковОС(мм)'])
+            tofloat(odbcRez['РџРѕР»РѕР¶РµРЅРёРµР”Р°С‚С‡РёРєРѕРІРќРЎ(РјРј)']),
+            tofloat(odbcRez['РџРѕР»РѕР¶РµРЅРёРµР”Р°С‚С‡РёРєРѕРІРћРЎ(РјРј)'])
         ]
         self.bars = [
-            str(odbcRez['НагружающийСтержень']),
-            str(odbcRez['ОпорныйСтержень']),
-            str(odbcRez['ОпорныйСтержень2(Обойма)'])
+            str(odbcRez['РќР°РіСЂСѓР¶Р°СЋС‰РёР№РЎС‚РµСЂР¶РµРЅСЊ']),
+            str(odbcRez['РћРїРѕСЂРЅС‹Р№РЎС‚РµСЂР¶РµРЅСЊ']),
+            str(odbcRez['РћРїРѕСЂРЅС‹Р№РЎС‚РµСЂР¶РµРЅСЊ2(РћР±РѕР№РјР°)'])
         ]
     def __repr__(self):
         rez = ''
-        rez+= f'Код эксперимента: {self.code}\n'
+        rez+= f'РљРѕРґ СЌРєСЃРїРµСЂРёРјРµРЅС‚Р°: {self.code}\n'
         return rez
 
 class expODBC(odbc):
     def __init__(self, dbFile):
         super().__init__(dbFile)
     def getExpTypes(self):
-        return self.getInfo(getFields=('ТипЭксперимента', 'КодЭксперимента'), table='ТипЭксперимента')
+        return self.getInfo(getFields=('РўРёРїР­РєСЃРїРµСЂРёРјРµРЅС‚Р°', 'РљРѕРґР­РєСЃРїРµСЂРёРјРµРЅС‚Р°'), table='РўРёРїР­РєСЃРїРµСЂРёРјРµРЅС‚Р°')
     def getMaterials(self):
-        return self.getInfo(getFields=('Материал', 'КодМатериала'), table='МатериалЭксперимент')
+        return self.getInfo(getFields=('РњР°С‚РµСЂРёР°Р»', 'РљРѕРґРњР°С‚РµСЂРёР°Р»Р°'), table='РњР°С‚РµСЂРёР°Р»Р­РєСЃРїРµСЂРёРјРµРЅС‚')
     def getNumbers(self, expType, materialCode):
         materialCode = tofloat(materialCode)
-        return self.getInfo(getFields='НомерОбразца', table='Эксперимент',
-                            fieldsCond=('ТипЭксперимента', 'КодМатериала'),
+        return self.getInfo(getFields='РќРѕРјРµСЂРћР±СЂР°Р·С†Р°', table='Р­РєСЃРїРµСЂРёРјРµРЅС‚',
+                            fieldsCond=('РўРёРїР­РєСЃРїРµСЂРёРјРµРЅС‚Р°', 'РљРѕРґРњР°С‚РµСЂРёР°Р»Р°'),
                             fieldsCondValues=(expType, materialCode))   
     def getExperimentData(self, sampleCode):
-        rez = self.getInfo(table='Эксперимент', fieldsCond='КодОбразца',
+        rez = self.getInfo(table='Р­РєСЃРїРµСЂРёРјРµРЅС‚', fieldsCond='РљРѕРґРћР±СЂР°Р·С†Р°',
                             fieldsCondValues=sampleCode)
         if rez:
             return experimentalData(rez[0])
         else:
-            print(f'В базе не найден эксперимент с кодом {sampleCode}')
+            print(f'Р’ Р±Р°Р·Рµ РЅРµ РЅР°Р№РґРµРЅ СЌРєСЃРїРµСЂРёРјРµРЅС‚ СЃ РєРѕРґРѕРј {sampleCode}')
             return None
     def getStrickerData(self, strickerCode):
-        rez = self.getInfo(table='Ударник', fieldsCond='КодУдарника',
+        rez = self.getInfo(table='РЈРґР°СЂРЅРёРє', fieldsCond='РљРѕРґРЈРґР°СЂРЅРёРєР°',
                             fieldsCondValues=strickerCode)       
         if rez:
             return striker(rez[0])
         else:
-            print(f'В базе не найден ударник с кодом {strickerCode}')
+            print(f'Р’ Р±Р°Р·Рµ РЅРµ РЅР°Р№РґРµРЅ СѓРґР°СЂРЅРёРє СЃ РєРѕРґРѕРј {strickerCode}')
             return None
             
     def getBarData(self, barCode):
-        rez = self.getInfo(table='МерныйСтержень', fieldsCond='КодМернСтерж',
+        rez = self.getInfo(table='РњРµСЂРЅС‹Р№РЎС‚РµСЂР¶РµРЅСЊ', fieldsCond='РљРѕРґРњРµСЂРЅРЎС‚РµСЂР¶',
                             fieldsCondValues=barCode)
         if rez:
             return bar(rez[0])
         else:
-            print(f'В базе не найден стержень с кодом {barCode}')
+            print(f'Р’ Р±Р°Р·Рµ РЅРµ РЅР°Р№РґРµРЅ СЃС‚РµСЂР¶РµРЅСЊ СЃ РєРѕРґРѕРј {barCode}')
             return None
     def putOsc(self, sampleCode, data):
-        self.putInfo(table='Эксперимент', putFields='Осциллограмма', putFieldsValues=data,
-                     fieldsCond='КодОбразца', fieldsCondValues=sampleCode)
+        self.putInfo(table='Р­РєСЃРїРµСЂРёРјРµРЅС‚', putFields='РћСЃС†РёР»Р»РѕРіСЂР°РјРјР°', putFieldsValues=data,
+                     fieldsCond='РљРѕРґРћР±СЂР°Р·С†Р°', fieldsCondValues=sampleCode)
     def putPulses(self, sampleCode, data):
-        self.putInfo(table='Эксперимент', putFields='ИмпульсыОбработанные', putFieldsValues=data,
-                     fieldsCond='КодОбразца', fieldsCondValues=sampleCode)
+        self.putInfo(table='Р­РєСЃРїРµСЂРёРјРµРЅС‚', putFields='РРјРїСѓР»СЊСЃС‹РћР±СЂР°Р±РѕС‚Р°РЅРЅС‹Рµ', putFieldsValues=data,
+                     fieldsCond='РљРѕРґРћР±СЂР°Р·С†Р°', fieldsCondValues=sampleCode)
+    def getDiagram(self, exp_code, isCorrE=False, Ecor=100000., Ssp=None):
+        exp_data = self.getExperimentData(exp_code)
+        if not len(exp_data.pulses['t']):
+            return None
+        et=[]
+        st=[]
+        det=[]
+        b1 = self.getBarData(exp_data.bars[0])
+        b2 = self.getBarData(exp_data.bars[1])
+        if Ssp==None:
+            Ssp = exp_data.d0**2/4.*np.pi
+        V = b1.c*(exp_data.pulses['pulses'][0]+exp_data.pulses['pulses'][1])-b2.c*exp_data.pulses['pulses'][2]
+        U = integrate(V, exp_data.pulses['t'][1]-exp_data.pulses['t'][0])
+        det = V/exp_data.l0*1000
+        F = b2.S*b2.E*exp_data.pulses['pulses'][2]
+        st = F/Ssp
+        et = integrate(det, exp_data.pulses['t'][1]-exp_data.pulses['t'][0])
+        if isCorrE:
+            et = correctE(et, st, Ecor, len(et)//10)
+        return {'t': exp_data.pulses['t'], 'det': det, 'st': st,
+                'et': et, 'v': V, 'u': U, 'F': F}
+
 
 if __name__=='__main__':
-    pass
-    dbFile=r"d:\experiments\ЭкспериментальныеДанныеДляОтладки.accdb"
+    import matplotlib.pylab as plt
+    dbFile=r"D:/work/NIIM/db-work2.accdb"
     db=expODBC(dbFile)
-    d=db.getExperimentData('c620-62')
-    print(d['Осциллограмма'][0:50])
-    #db.insertInfo(table='Эксперимент', putFields=('Температура', 'НомерОбразца'), putFieldsValues=(25, '013'))
+    d=db.getDiagram('c659-01-1')
+    E, a = getE(d['et'], d['st'], interval=1, window=[-200, -50])
+    plt.plot(d['et'], d['st'])
+    yb = plt.gca().get_ylim()
+    plt.plot(d['et'], list(map(lambda x: E*x+a, d['et'])), 'k')
+    plt.ylim(*yb)
+    print(E)
+    plt.show()
     
 
 #%%
