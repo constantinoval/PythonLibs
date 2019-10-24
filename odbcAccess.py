@@ -278,6 +278,7 @@ class bar(object):
         self.c = tofloat(odbcRez['СкоростьЗвука(мсек)'])
         self.l = tofloat(odbcRez['Длина(мм)'])
         self.S = np.pi*self.d**2/4.
+        self.dispersion_data = odbcRez['Дисперсия']
     def __repr__(self):
         rez=''
         rez+=f'Код стержня: {self.code}\n'
