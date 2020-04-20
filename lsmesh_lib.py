@@ -1032,7 +1032,10 @@ class model:
         print('Saving nodes...')
         if not self.nds:
             return
-        f=open(fname, mode)
+        if type(fname) in [str]:
+            f=open(fname, mode)
+        else:
+            f = fname
         if mode=='w':
             f.write("*KEYWORD\n")
         f.write('*NODE\n')
@@ -1040,7 +1043,8 @@ class model:
             f.write("%8d%16.9e%16.9e%16.9e\n" % tuple([n+nShift]+c.get_crds()))
         if end:
             f.write("*END")
-        f.close()
+        if type(fname) in [str]:
+            f.close()
 
     def save_elements(self, fname, nShift=0, eShift=0, pShift=0, mode='a', end=False):
         print('Saving elements...')

@@ -80,7 +80,18 @@ def correctE(e,s, Ecor=100000., interval=0.3, window=None):
     kk, aa = getE(e, s, interval=interval, window=window)
     return e-s*(Ecor-kk)/Ecor/kk+aa/kk
 
-def getE(e,s, interval=0.3, window=None):
+def getE(e,s, interval=0.3, window=None, min_treshold=None):
+    e = e.copy()
+    s = s.copy()
+    if min_treshold:
+        i = s.argmax()
+        e = e[:i]
+        s = s[:i]
+        idxs = (s>=s.max()*min_treshold) & (s<=s.max()*(1-min_treshold))
+        e=e[idxs]
+        s=s[idxs]
+        interval=1
+        window = len(e)//3
     if type(window)==list:
         return np.polyfit(e[window[0]:window[1]],s[window[0]:window[1]],1)
     k=[]
@@ -277,7 +288,7 @@ class bar(object):
         self.d0 = tofloat(odbcRez['ВнутреннийДиаметр'])
         self.c = tofloat(odbcRez['СкоростьЗвука(мсек)'])
         self.l = tofloat(odbcRez['Длина(мм)'])
-        self.S = np.pi*self.d**2/4.
+        self.S = 0.25*np.pi*(self.d**2-self.d0**2)
         self.dispersion_data = odbcRez['Дисперсия']
     def __repr__(self):
         rez=''
@@ -401,7 +412,7 @@ class expODBC(odbc):
         st = F/Ssp
         et = integrate(det, exp_data.pulses['t'][1]-exp_data.pulses['t'][0])
         if isCorrE:
-            et = correctE(et, st, Ecor, len(et)//10)
+            et = correctE(et, st, Ecor)
         return {'t': exp_data.pulses['t'], 'det': det, 'st': st,
                 'et': et, 'v': V, 'u': U, 'F': F}
 
