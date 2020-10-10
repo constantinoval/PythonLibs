@@ -466,6 +466,30 @@ class expODBC(odbc):
         return {'t': exp_data.pulses['t'], 'det': det, 'st': st,
                 'et': et, 'v': V, 'u': U, 'F': F}
 
+def smooth_stress(exp, pow=2, width=5):
+	""" exp - dict {'et', 'st', 'det', etc.}
+	"""
+    st = exp['st']
+    idxs = st > 0.5*st.max()
+    st = st[idxs]
+    p1 = find_peaks(st, width=width)[0]
+    p2 = find_peaks(-st, width=width)[0]
+    i1 = min(p1[0], p2[0])
+    i2 = max(p1[-1], p2[-1])
+    p = np.polyfit(range(i1, i2), st[i1:i2], pow)
+    x = range(i1, i2)
+    y = np.polyval(p, range(i1, i2))
+    st[x] = y
+    def pf(x): return np.polyval(p, x)
+    for i, sst in enumerate(st):
+        if sst > pf(i):
+            break
+    xx = [i-2, i-1, i1, i1+1]
+    yy = st[xx]
+    xxx = range(i - 2, i1 + 1)
+    f = interp1d(xx, yy, kind='cubic')
+    st[xxx] = f(xxx)
+    exp['st'][idxs] = st
 
 if __name__ == '__main__':
     import matplotlib.pylab as plt
