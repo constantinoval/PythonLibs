@@ -2,6 +2,8 @@
 import numpy as np
 import pyodbc
 from scipy.optimize import minimize_scalar, fmin, differential_evolution
+from scipy.interpolate import interp1d
+from scipy.signal import find_peaks
 # matplotlib.use('PS')
 # %%
 
@@ -466,9 +468,10 @@ class expODBC(odbc):
         return {'t': exp_data.pulses['t'], 'det': det, 'st': st,
                 'et': et, 'v': V, 'u': U, 'F': F}
 
+
 def smooth_stress(exp, pow=2, width=5):
-	""" exp - dict {'et', 'st', 'det', etc.}
-	"""
+    """exp - dict {'et', 'st', 'det', etc.}
+"""
     st = exp['st']
     idxs = st > 0.5*st.max()
     st = st[idxs]
@@ -489,7 +492,15 @@ def smooth_stress(exp, pow=2, width=5):
     xxx = range(i - 2, i1 + 1)
     f = interp1d(xx, yy, kind='cubic')
     st[xxx] = f(xxx)
+    for i in range(i2, len(st)):
+        if st[i] < pf(i):
+            break
+    if i-i2 > 0:
+        print('ok')
+        xx = range(i2, i)
+        st[xx] = pf(xx)
     exp['st'][idxs] = st
+
 
 if __name__ == '__main__':
     import matplotlib.pylab as plt
